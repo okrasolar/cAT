@@ -14,6 +14,8 @@ static char connection_type[4];
 static char connection_ip[46];
 static uint16_t connection_port;
 
+static uint16_t recv_data_length;
+
 static int cgmm_run(const struct cat_command *cmd)
 {
     //TODO: Also print version?
@@ -58,9 +60,18 @@ static int cipsend_run(const struct cat_command *cmd)
     return 0;
 }
 
-static int ciprecvdata_run(const struct cat_command *cmd)
+static struct cat_variable ciprecvdata_vars[] = {
+        {
+                .type = CAT_VAR_INT_DEC,
+                .data = &recv_data_length,
+                .data_size = sizeof(recv_data_length),
+                .name = "data length"
+        }
+};
+
+static int ciprecvdata_run(const struct cat_command *cmd, const uint8_t *data, const size_t data_size, const size_t args_num)
 {
-    return 0;
+    return CAT_RETURN_STATE_DATA_OK;;
 }
 
 /* declaring commands array */
@@ -68,7 +79,7 @@ static struct cat_command cmds[] = {
         {
                 .name = "+CGMM",
                 .description = "Modem model",
-                .run = cgmm_run,
+                .run = cgmm_run
         },
         {
                 .name = "+CIPSTART",
@@ -81,7 +92,7 @@ static struct cat_command cmds[] = {
         {
                 .name = "+CIPCLOSE",
                 .description = "Close connection",
-                .run = cipclose_run,
+                .run = cipclose_run
         },
         {
                 .name = "+CIPSEND",
@@ -91,7 +102,10 @@ static struct cat_command cmds[] = {
         {
                 .name = "+CIPRECVDATA",
                 .description = "Receive data from peer",
-                .run = ciprecvdata_run,
+                .write = ciprecvdata_run,
+                .var = ciprecvdata_vars,
+                .var_num = sizeof(ciprecvdata_vars) / sizeof(ciprecvdata_vars[0]),
+                .need_all_vars = true
         },
 };
 
