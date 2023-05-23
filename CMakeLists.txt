@@ -31,6 +31,9 @@ add_executable( unsolicited example/unsolicited.c )
 # target_compile_options(unsolicited PRIVATE -g)
 target_link_libraries( unsolicited cat )
 
+add_executable( wisun example/wisun.c )
+target_link_libraries( wisun cat )
+
 add_executable( test_parse tests/test_parse.c )
 target_link_libraries( test_parse cat )
 add_test( test_parse ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_parse )
