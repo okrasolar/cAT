@@ -7,16 +7,19 @@
 
 #include "../src/cat.h"
 
-static uint16_t bytesToSend;
-static uint16_t bytesRead = 0;
-static uint8_t sendBuffer[64] = { 0 };
+static uint16_t bytes_to_read;
+static uint16_t bytes_read = 0;
+static uint8_t read_buffer[64] = { 0 };
+static uint16_t bytes_to_write = 0;
+static uint16_t bytes_written = 0;
+static uint8_t write_buffer[64] = { 0 };
 
 static struct cat_variable cipsend_vars[] = {
         {
                 .type = CAT_VAR_INT_DEC,
-                .data = &bytesToSend,
-                .data_size = sizeof(bytesToSend),
-                .name = "bytesToSend",
+                .data = &bytes_to_read,
+                .data_size = sizeof(bytes_to_read),
+                .name = "bytes_to_read",
                 .access = CAT_VAR_ACCESS_READ_WRITE,
         },
 };
@@ -82,22 +85,22 @@ static int cipclose_run(const struct cat_command *cmd)
     return CAT_RETURN_STATE_ERROR;
 }
 
-static int cipsend_read(const struct cat_command *cmd, const uint8_t *data, const size_t data_size, const size_t args_num)
+static int cipsend_write(const struct cat_command *cmd, const uint8_t *data, const size_t data_size, const size_t args_num)
 {
-        if(bytesRead==0){
+        if(bytes_read==0){
                 write_char('>');
         }
-        uint16_t min_size = bytesToSend > sizeof(sendBuffer) ? sizeof(sendBuffer) : bytesToSend;
+        uint16_t min_size = bytes_to_read > sizeof(read_buffer) ? sizeof(read_buffer) : bytes_to_read;
         for (uint16_t i = 0; i < min_size; i++){
-                read_char(&sendBuffer[i]);
-                printf("%c", sendBuffer[i]);
+                read_char(&read_buffer[i]);
+                printf("%c", read_buffer[i]);
         }
-        bytesToSend -= min_size;
-        if(bytesToSend > 0){
-                bytesRead += min_size;
+        bytes_to_read -= min_size;
+        if(bytes_to_read > 0){
+                bytes_read += min_size;
                 return CAT_RETURN_STATE_DATA_NEXT;
         }
-        bytesRead = 0;
+        bytes_read = 0;
         return CAT_RETURN_STATE_DATA_OK;
 }
 
@@ -110,9 +113,9 @@ static struct cat_variable ciprecvdata_vars[] = {
         }
 };
 
-static int ciprecvdata_run(const struct cat_command *cmd, const uint8_t *data, const size_t data_size, const size_t args_num)
+static int ciprecvdata_read(const struct cat_command *cmd, uint8_t *data, size_t *data_size, const size_t max_data_size)
 {
-    return CAT_RETURN_STATE_DATA_OK;;
+        return CAT_RETURN_STATE_DATA_OK;
 }
 
 /* declaring commands array */
@@ -138,14 +141,14 @@ static struct cat_command cmds[] = {
         {
                 .name = "+CIPSEND",
                 .description = "Send data to peer",
-                .write = cipsend_read,
+                .write = cipsend_write,
                 .var = cipsend_vars,
                 .var_num = sizeof(cipsend_vars) / sizeof(cipsend_vars[0]),
         },
         {
                 .name = "+CIPRECVDATA",
                 .description = "Receive data from peer",
-                .write = ciprecvdata_run,
+                .read = ciprecvdata_read,
                 .var = ciprecvdata_vars,
                 .var_num = sizeof(ciprecvdata_vars) / sizeof(ciprecvdata_vars[0]),
                 .need_all_vars = true
