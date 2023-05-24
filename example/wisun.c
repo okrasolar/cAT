@@ -7,6 +7,20 @@
 
 #include "../src/cat.h"
 
+static uint16_t bytesToSend;
+static uint16_t bytesRead = 0;
+static uint8_t sendBuffer[64] = { 0 };
+
+static struct cat_variable cipsend_vars[] = {
+        {
+                .type = CAT_VAR_INT_DEC,
+                .data = &bytesToSend,
+                .data_size = sizeof(bytesToSend),
+                .name = "bytesToSend",
+                .access = CAT_VAR_ACCESS_READ_WRITE,
+        },
+};
+
 /* helper variable used to exit demo code */
 static bool quit_flag;
 
@@ -15,6 +29,19 @@ static char connection_ip[46];
 static uint16_t connection_port;
 
 static uint16_t recv_data_length;
+
+/* custom target dependent input output handlers */
+static int write_char(char ch)
+{
+        putc(ch, stdout);
+        return 1;
+}
+
+static int read_char(char *ch)
+{
+        *ch = getc(stdin);
+        return 1;
+}
 
 static int cgmm_run(const struct cat_command *cmd)
 {
@@ -55,9 +82,23 @@ static int cipclose_run(const struct cat_command *cmd)
     return CAT_RETURN_STATE_ERROR;
 }
 
-static int cipsend_run(const struct cat_command *cmd)
+static int cipsend_read(const struct cat_command *cmd, const uint8_t *data, const size_t data_size, const size_t args_num)
 {
-    return 0;
+        if(bytesRead==0){
+                write_char('>');
+        }
+        uint16_t min_size = bytesToSend > sizeof(sendBuffer) ? sizeof(sendBuffer) : bytesToSend;
+        for (uint16_t i = 0; i < min_size; i++){
+                read_char(&sendBuffer[i]);
+                printf("%c", sendBuffer[i]);
+        }
+        bytesToSend -= min_size;
+        if(bytesToSend > 0){
+                bytesRead += min_size;
+                return CAT_RETURN_STATE_DATA_NEXT;
+        }
+        bytesRead = 0;
+        return CAT_RETURN_STATE_DATA_OK;
 }
 
 static struct cat_variable ciprecvdata_vars[] = {
@@ -97,7 +138,9 @@ static struct cat_command cmds[] = {
         {
                 .name = "+CIPSEND",
                 .description = "Send data to peer",
-                .run = cipsend_run,
+                .write = cipsend_read,
+                .var = cipsend_vars,
+                .var_num = sizeof(cipsend_vars) / sizeof(cipsend_vars[0]),
         },
         {
                 .name = "+CIPRECVDATA",
@@ -129,19 +172,6 @@ static struct cat_descriptor desc = {
         .buf = buf,
         .buf_size = sizeof(buf)
 };
-
-/* custom target dependent input output handlers */
-static int write_char(char ch)
-{
-        putc(ch, stdout);
-        return 1;
-}
-
-static int read_char(char *ch)
-{
-        *ch = getc(stdin);
-        return 1;
-}
 
 /* declaring input output interface descriptor for parser */
 static struct cat_io_interface iface = {
